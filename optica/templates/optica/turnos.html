@@ -1,0 +1,110 @@
+{% extends 'optica/layout.html' %}
+{% load static %}
+
+
+
+{% block content %}
+<div class="row">
+    <!-- Columna para Turnos K (Entrega) -->
+    <div class="col-md-4">
+        <h3>Turnos para Entrega</h3>
+        <ul class="list-group" id="turnos-k">
+            {% for turno in turnos_entrega %}
+                <li class="list-group-item" id="turno-k-{{ turno.id }}">
+                    Turno: {{ turno.tipo }}{{ turno.numero }}
+                </li>
+            {% endfor %}
+        </ul>
+        <button id="llamar-siguiente-entrega" class="btn btn-primary mt-3">Llamar a Siguiente (Entrega)</button>
+    </div>
+
+    <!-- Panel Central -->
+    <div class="col-md-4 text-center">
+        <div class="card">
+            <div class="card-body">
+                <!-- Turno siendo llamado -->
+                <h2 id="turno-llamado" class="display-4 text-primary">
+                    <span class="text-muted">Sin turno llamado</span>
+                </h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- Columna para Turnos P (Presupuesto) -->
+    <div class="col-md-4">
+        <h3>Turnos para Presupuesto</h3>
+        <ul class="list-group" id="turnos-p">
+            {% for turno in turnos_presupuesto %}
+                <li class="list-group-item" id="turno-p-{{ turno.id }}">
+                    Turno: {{ turno.tipo }}{{ turno.numero }}
+                </li>
+            {% endfor %}
+        </ul>
+        <button id="llamar-siguiente-presupuesto" class="btn btn-success mt-3">Llamar a Siguiente (Presupuesto)</button>
+    </div>
+
+
+    <!-- Token CSRF -->
+<div>
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+</div>
+</div>
+
+
+<script>
+    // Establecer la conexión WebSocket
+    const socket = new WebSocket('ws://' + window.location.host + '/ws/turnos/');
+
+    // Manejar los mensajes recibidos a través del WebSocket
+    socket.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+
+        // Si el turno está siendo llamado, actualizar el panel central
+        if (data.estado === 'Llamando') {
+            // Actualizar el panel central con el turno llamado
+            document.getElementById('turno-llamado').textContent = `Turno: ${data.tipo}${data.numero} (Usuario: ${data.usuario})`;
+
+            // Eliminar el turno de la lista de "En espera"
+            const turnoItem = document.getElementById(`turno-${data.id}`);
+            if (turnoItem) {
+                turnoItem.remove();
+            }
+        }
+    };
+
+    // Manejar errores del WebSocket
+    socket.onerror = function(error) {
+        console.error("Error en WebSocket:", error);
+    };
+
+    // Función para manejar el llamado del siguiente turno
+    function llamarSiguienteTurno(tipo) {
+        fetch('/llamar-siguiente/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value, // Incluye CSRF token
+            },
+            body: JSON.stringify({ tipo: tipo }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error(data.error);
+            } else {
+                console.log('Turno llamado:', data);
+            }
+        })
+        .catch(error => console.error('Error al llamar al siguiente turno:', error));
+    }
+
+    // Agregar eventos a los botones para llamar al siguiente turno
+    document.getElementById('llamar-siguiente-entrega').addEventListener('click', () => {
+        llamarSiguienteTurno('K'); // Tipo "K" para Entrega
+    });
+
+    document.getElementById('llamar-siguiente-presupuesto').addEventListener('click', () => {
+        llamarSiguienteTurno('P'); // Tipo "P" para Presupuesto
+    });
+</script>
+{% endblock %}

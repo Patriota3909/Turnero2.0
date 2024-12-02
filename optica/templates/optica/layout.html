@@ -1,0 +1,38 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turnos Óptica</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <!-- Título en el lado izquierdo -->
+            <a class="navbar-brand" href="#">Turnos Óptica</a>
+            <a href="{% url 'turnos'%}">Turnos</a>
+            <a href="{% url 'crear_turno'%}">Crear un turno</a>
+            
+            <!-- Elementos del lado derecho -->
+            <div class="d-flex align-items-center">
+                <!-- Mostrar nombre del usuario autenticado -->
+                <span class="me-3">Hola, {{ user.username }}</span>
+                
+                <li><a href="{% url 'exit' %}">Salir</a></li> 
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido principal -->
+    <div class="container mt-4">
+        {% block content %}
+
+
+        {% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
