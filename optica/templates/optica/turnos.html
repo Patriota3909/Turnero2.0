@@ -37,7 +37,7 @@
                 </h2>
                 <!-- Botones para gestionar el turno -->
                 {% if turno_llamado %}
-                <div id="acciones-turno" class="mt-3">
+                <div id="acciones-turno" class="mt-3" style="display: {% if turno_llamado %}block{% else %}none{% endif %};">
                     <button id="btn-empezar-atencion" class="btn btn-info">Empezar Atención</button>
                     <button id="btn-terminar-atencion" class="btn btn-success">Terminar Atención</button>
                     <button id="btn-no-contesto" class="btn btn-danger">No Contestó</button>
@@ -60,11 +60,10 @@
         <button id="llamar-siguiente-presupuesto" class="btn btn-success mt-3">Llamar a Siguiente (Presupuesto)</button>
     </div>
 
-
     <!-- Token CSRF -->
-<div>
-    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-</div>
+    <div>
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+    </div>
 </div>
 
 
@@ -81,9 +80,15 @@
 
         // Caso 1: Turno en estado "Llamando"
         if (data.estado === 'Llamando') {
-            document.getElementById('turno-llamado').textContent = `Turno: ${data.tipo}${data.numero} (Usuario: ${data.usuario})`;
+            document.getElementById('turno-llamado').textContent = `Turno: ${data.tipo}${data.numero}`;
             document.getElementById('estado-turno').style.display = 'none'; // Ocultar leyenda de estado
+            
+            //Aqui mostramos los botones de acción, 
+            document.getElementById('acciones-turno').style.display = 'block';
+            document.getElementById('estado-turno').style.display = 'none';
+            
             turnoLlamando = true; // Bloquear nuevos llamados
+
         } 
         // Caso 2: Turno en estado "Atendiendo"
         else if (data.estado === 'Atendiendo') {
@@ -107,7 +112,9 @@
         }
         // Caso 4: Turno en estado "Finalizado" o "No Respondió"
         else if (data.estado === 'Finalizado' || data.estado === 'No Respondió') {
+            //Vamos a dejar el cuadro centrar sin nada
             document.getElementById('turno-llamado').textContent = 'Sin turno llamado';
+            document.getElementById('acciones-turno').style.display = 'none';
             document.getElementById('estado-turno').style.display = 'none'; // Ocultar leyenda de estado
             turnoLlamando = false; // Permitir nuevos llamados
         }
@@ -201,6 +208,13 @@
 
         // Terminar Atención
         document.getElementById('btn-terminar-atencion').addEventListener('click', () => {
+            const turnoLlamadoElement = document.getElementById('turno-llamado');
+            const turnoId = turnoLlamadoElement.getAttribute('data-turno-id'); // Obtiene el ID del turno
+
+            if(!turnoId){
+                alerta('No se encontró el Id del turno en estado "llamando".')
+            }
+            
             fetch('/terminar-atencion/', {
                 method: 'POST',
                 headers: {
@@ -209,7 +223,14 @@
                 },
                 body: `turno_id=${turnoId}`,
             })
-            .then(response => response.json())
+            .then(response => {
+                if(!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.error || 'Error desconocido');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 alert(data.message);
                 // Restablecer el estado del cuadro central

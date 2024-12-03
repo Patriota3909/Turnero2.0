@@ -153,11 +153,35 @@ def empezar_atencion(request):
 def terminar_atencion(request):
     if request.method == 'POST':
         turno_id = request.POST.get('turno_id')
-        turno = get_object_or_404(Turno, id=turno_id, estado='Atendiendo')
-        turno.estado = 'Finalizado'
-        turno.hora_fin_atencion = now()  # Registrar hora de fin
-        turno.save()
-        return JsonResponse({'message': 'Atención finalizada correctamente.'})
+        if not turno_id:
+            return JsonResponse({'error': 'El id del turno no fue proporcionado'}, status = 400)
+        
+        try:
+            turno = get_object_or_404(Turno, id=turno_id, estado='Atendiendo')
+            turno.estado = 'Finalizado'
+            turno.hora_fin_atencion = now()  # Registrar hora de fin
+            turno.save()
+            
+            #Notificamos a nuestro websocket
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                "turnos", #hay que notificar al grup entero
+                {
+                    "type": "send_turno_update",
+                    "message": {
+                        "id": turno.id,
+                        "tipo": turno.tipo,
+                        "numero": turno.numero,
+                        "estado": turno.estado,
+                    },
+                },
+            )
+            
+            
+            return JsonResponse({'message': 'Atención finalizada correctamente.'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+                
     return JsonResponse({'error': 'Método no permitido.'}, status=405)
 
 # No Contestó
