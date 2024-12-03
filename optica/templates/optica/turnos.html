@@ -21,11 +21,28 @@
     <!-- Panel Central -->
     <div class="col-md-4 text-center">
         <div class="card">
-            <div class="card-body">
+            <div class="card-body position-relative">
+                <!-- Ícono de bocina -->
+                <i class="fa fa-bullhorn position-absolute" style="top: 10px; right: 10px; font-size: 24px; cursor: pointer;"></i>
                 <!-- Turno siendo llamado -->
-                <h2 id="turno-llamado" class="display-4 text-primary">
-                    <span class="text-muted">Sin turno llamado</span>
+                 <!-- Leyenda del Estado del Turno -->
+                <p id="estado-turno" class="text-info" style="font-weight: bold; display: none;"></p>
+
+                <h2 id="turno-llamado" class="display-4 text-primary" data-turno-id="{% if turno_llamado %}{{ turno_llamado.id }}{% else %}0{% endif %}" >
+                    {% if turno_llamado %}
+                        Turno: {{ turno_llamado.tipo }}{{ turno_llamado.numero }}
+                    {% else %}
+                        <span class="text-muted">Sin turno llamado</span>
+                    {% endif %}
                 </h2>
+                <!-- Botones para gestionar el turno -->
+                {% if turno_llamado %}
+                <div id="acciones-turno" class="mt-3">
+                    <button id="btn-empezar-atencion" class="btn btn-info">Empezar Atención</button>
+                    <button id="btn-terminar-atencion" class="btn btn-success">Terminar Atención</button>
+                    <button id="btn-no-contesto" class="btn btn-danger">No Contestó</button>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -55,26 +72,50 @@
     // Establecer la conexión WebSocket
     const socket = new WebSocket('ws://' + window.location.host + '/ws/turnos/');
 
+    // Estado para saber si ya hay un turno "Llamando"
+    let turnoLlamando = false;
+
     // Manejar los mensajes recibidos a través del WebSocket
-    socket.onmessage = function(event) {
+    socket.onmessage = function (event) {
         const data = JSON.parse(event.data);
 
-        // Si el turno está siendo llamado, actualizar el panel central
+        // Caso 1: Turno en estado "Llamando"
         if (data.estado === 'Llamando') {
-            // Actualizar el panel central con el turno llamado
             document.getElementById('turno-llamado').textContent = `Turno: ${data.tipo}${data.numero} (Usuario: ${data.usuario})`;
+            document.getElementById('estado-turno').style.display = 'none'; // Ocultar leyenda de estado
+            turnoLlamando = true; // Bloquear nuevos llamados
+        } 
+        // Caso 2: Turno en estado "Atendiendo"
+        else if (data.estado === 'Atendiendo') {
+            document.getElementById('turno-llamado').textContent = `Turno: ${data.tipo}${data.numero}`;
+            const estadoTurnoElement = document.getElementById('estado-turno');
+            estadoTurnoElement.textContent = 'Estado: Atendiendo al paciente';
+            estadoTurnoElement.style.display = 'block'; // Mostrar leyenda del estado
+        }
+        // Caso 3: Turno agregado en "En espera"
+        else if (data.estado === 'En espera') {
+            const nuevoTurno = document.createElement('li');
+            nuevoTurno.className = 'list-group-item';
+            nuevoTurno.id = `turno-${data.id}`;
+            nuevoTurno.textContent = `Turno: ${data.tipo}${data.numero}`;
 
-            // Eliminar el turno de la lista de "En espera"
-            const turnoItem = document.getElementById(`turno-${data.id}`);
-            if (turnoItem) {
-                turnoItem.remove();
+            if (data.tipo === 'K') {
+                document.getElementById('turnos-k').appendChild(nuevoTurno);
+            } else if (data.tipo === 'P') {
+                document.getElementById('turnos-p').appendChild(nuevoTurno);
             }
+        }
+        // Caso 4: Turno en estado "Finalizado" o "No Respondió"
+        else if (data.estado === 'Finalizado' || data.estado === 'No Respondió') {
+            document.getElementById('turno-llamado').textContent = 'Sin turno llamado';
+            document.getElementById('estado-turno').style.display = 'none'; // Ocultar leyenda de estado
+            turnoLlamando = false; // Permitir nuevos llamados
         }
     };
 
     // Manejar errores del WebSocket
-    socket.onerror = function(error) {
-        console.error("Error en WebSocket:", error);
+    socket.onerror = function (error) {
+        console.error('Error en WebSocket:', error);
     };
 
     // Función para manejar el llamado del siguiente turno
@@ -83,28 +124,125 @@
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value, // Incluye CSRF token
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
             },
             body: JSON.stringify({ tipo: tipo }),
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.error || 'Error desconocido');
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.error) {
-                console.error(data.error);
+                alert(data.error); // Mostrar el error al usuario
             } else {
                 console.log('Turno llamado:', data);
+                turnoLlamando = true; // Marcar que el usuario tiene un turno "Llamando"
             }
         })
-        .catch(error => console.error('Error al llamar al siguiente turno:', error));
+        .catch(error => {
+            console.error('Error al llamar al siguiente turno:', error);
+            alert(error.message);
+        });
     }
 
     // Agregar eventos a los botones para llamar al siguiente turno
     document.getElementById('llamar-siguiente-entrega').addEventListener('click', () => {
-        llamarSiguienteTurno('K'); // Tipo "K" para Entrega
+        llamarSiguienteTurno('K');
     });
 
     document.getElementById('llamar-siguiente-presupuesto').addEventListener('click', () => {
-        llamarSiguienteTurno('P'); // Tipo "P" para Presupuesto
+        llamarSiguienteTurno('P');
+    });
+
+    // Manejar acciones de los botones: Empezar, Terminar, No Contestó
+    document.addEventListener('DOMContentLoaded', () => {
+        
+
+        // Empezar Atención
+        document.getElementById('btn-empezar-atencion').addEventListener('click', () => {
+            const turnoLlamadoElement = document.getElementById('turno-llamado');
+            const turnoId = turnoLlamadoElement.getAttribute('data-turno-id');
+
+            if (!turnoId) {
+                alert('No se encontró el ID del turno en estado "Llamando".');
+                return;
+            }
+
+            fetch('/empezar-atencion/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+                body: `turno_id=${turnoId}`,
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => {
+                            throw new Error(err.error || 'Error desconocido');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    alert(data.message);
+                    // Actualizar el estado del turno en la UI
+                    const estadoTurnoElement = document.getElementById('estado-turno');
+                    estadoTurnoElement.textContent = 'Estado: Atendiendo al paciente';
+                    estadoTurnoElement.style.display = 'block';
+                })
+                .catch(error => console.error('Error al iniciar la atención:', error));
+        });
+
+        // Terminar Atención
+        document.getElementById('btn-terminar-atencion').addEventListener('click', () => {
+            fetch('/terminar-atencion/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+                body: `turno_id=${turnoId}`,
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                // Restablecer el estado del cuadro central
+                document.getElementById('turno-llamado').textContent = 'Sin turno llamado';
+                document.getElementById('estado-turno').style.display = 'none';
+                turnoLlamando = false;
+            })
+            .catch(error => console.error('Error al finalizar la atención:', error));
+        });
+
+        // No Contestó
+        document.getElementById('btn-no-contesto').addEventListener('click', () => {
+            fetch('/no-contesto/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+                body: `turno_id=${turnoId}`,
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                // Restablecer el estado del cuadro central
+                document.getElementById('turno-llamado').textContent = 'Sin turno llamado';
+                document.getElementById('estado-turno').style.display = 'none';
+                turnoLlamando = false;
+            })
+            .catch(error => console.error('Error al marcar como "No contestó":', error));
+        });
     });
 </script>
+
+
+
 {% endblock %}
