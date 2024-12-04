@@ -93,20 +93,31 @@
 
         // Caso 1: Turno en estado "Llamando"
         if (data.estado === 'Llamando') {
-            document.getElementById('turno-llamado').textContent = `Turno: ${data.tipo}${data.numero}`;
-            document.getElementById('estado-turno').style.display = 'none'; // Ocultar leyenda de estado
+            const turnoLlamadoElement = document.getElementById('turno-llamado');
+            turnoLlamadoElement.textContent = `Turno: ${data.tipo}${data.numero}`;
+            turnoLlamadoElement.setAttribute('data-turno-id', data.id); // Aqui actualizamos el id tuinro
+
+            //document.getElementById('turno-llamado').textContent = `Turno: ${data.tipo}${data.numero}`;
+            //document.getElementById('estado-turno').style.display = 'none'; // Ocultar leyenda de estado
             
             //Aqui mostramos los botones de acción, 
             document.getElementById('acciones-turno').style.display = 'block';
             document.getElementById('estado-turno').style.display = 'none';
+
+            //Eliminamos el turno de la lista de " En espera"
+
+            const turnoEnLista = document.getElementById(`turno-${data.id}`);
+            if(turnoEnLista){
+                turnoEnLista.remove();
+            }
             
             turnoLlamando = true; // Bloquear nuevos llamados
 
         } 
         // Caso 2: Turno en estado "Atendiendo"
         else if (data.estado === 'Atendiendo') {
-            document.getElementById('turno-llamado').textContent = `Turno: ${data.tipo}${data.numero}`;
             const estadoTurnoElement = document.getElementById('estado-turno');
+            document.getElementById('turno-llamado').textContent = `Turno: ${data.tipo}${data.numero}`;
             estadoTurnoElement.textContent = 'Estado: Atendiendo al paciente';
             estadoTurnoElement.style.display = 'block'; // Mostrar leyenda del estado
         }

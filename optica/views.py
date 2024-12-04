@@ -153,7 +153,7 @@ def empezar_atencion(request):
                 "turnos", {
                     "type": "send_turno_update",
                     "message":{
-                        "id": id.turno.id,
+                        "id": turno.id,
                         "tipo": turno.tipo,
                         "numero": turno.numero,
                         "estado": turno.estado,
