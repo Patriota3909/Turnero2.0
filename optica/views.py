@@ -137,6 +137,8 @@ def llamar_siguiente_turno(request):
 def empezar_atencion(request):
     if request.method == 'POST':
         turno_id = request.POST.get('turno_id')
+        print("Turno ID recibido:", turno_id)  # Depuración
+        
         if not turno_id:
             return JsonResponse({'error': 'El ID del turno no fue proporcionado.'}, status=400)
         try:
@@ -144,6 +146,20 @@ def empezar_atencion(request):
             turno.estado = 'Atendiendo'
             turno.hora_inicio_atencion = now()  # Registrar hora de inicio
             turno.save()
+
+            #Notificamos al websocket
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                "turnos", {
+                    "type": "send_turno_update",
+                    "message":{
+                        "id": id.turno.id,
+                        "tipo": turno.tipo,
+                        "numero": turno.numero,
+                        "estado": turno.estado,
+                    },
+                },
+            )
             return JsonResponse({'message': 'Atención iniciada correctamente.'})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)

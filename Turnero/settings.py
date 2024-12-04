@@ -133,3 +133,18 @@ ASGI_APPLICATION = 'Turnero.asgi.application'
 #varoable de entorno de redireccion de login y lougout
 LOGIN_REDICT_URL = "home"
 LOGOUT_REDIRECT_URL = "home"
+
+#logs de errores:
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
+}

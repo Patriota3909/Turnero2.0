@@ -31,6 +31,8 @@ class Turno(models.Model):
     )
     creado_en = models.DateTimeField(default=now)
     actualizado_en = models.DateTimeField(auto_now=True)
+    hora_inicio_atencion = models.DateTimeField(null=True, blank=True)
+    hora_fin_atencion = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [
