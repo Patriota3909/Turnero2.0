@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pantalla de Turnos</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .contenedor {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 2rem;
+            padding: 1rem;
+        }
+        .columna {
+            width: 45%;
+        }
+        .turno-llamado {
+            font-size: 3rem;
+            color: #007bff;
+            font-weight: bold;
+            animation: parpadeo 1s infinite;
+        }
+        .turno-llamado.atendido {
+            animation: none;
+        }
+        .turno-usuario {
+            font-size: 1.5rem;
+            margin-top: 0.5rem;
+            color: #6c757d;
+        }
+        .proximos-turnos {
+            font-size: 1.5rem;
+            margin-top: 2rem;
+        }
+        .turno-item {
+            font-size: 1.25rem;
+            margin: 0.5rem 0;
+        }
+        @keyframes parpadeo {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="contenedor">
+        <!-- Columna Entrega -->
+        <div class="columna">
+            <h3 class="text-primary text-center">Turnos de Entrega</h3>
+            <div id="turno-llamado-entrega" class="text-center">
+                <div class="text-muted">Sin turno llamado</div>
+            </div>
+            <div class="proximos-turnos">
+                <h4>Próximos Turnos</h4>
+                <ul id="lista-proximos-turnos-entrega" class="list-unstyled">
+                    <!-- Los turnos se llenarán dinámicamente -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Columna Presupuesto -->
+        <div class="columna">
+            <h3 class="text-success text-center">Turnos de Presupuesto</h3>
+            <div id="turno-llamado-presupuesto" class="text-center">
+                <div class="text-muted">Sin turno llamado</div>
+            </div>
+            <div class="proximos-turnos">
+                <h4>Próximos Turnos</h4>
+                <ul id="lista-proximos-turnos-presupuesto" class="list-unstyled">
+                    <!-- Los turnos se llenarán dinámicamente -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio -->
+    <audio id="audio-turno" preload="auto"></audio>
+
+    <script>
+        // Establecer conexión WebSocket
+        const socket = new WebSocket('ws://' + window.location.host + '/ws/turnos/');
+
+        socket.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+
+            // Caso 1: Turno en estado "Llamando"
+            if (data.estado === 'Llamando') {
+                const turnoLlamado = document.getElementById(`turno-llamado-${data.tipo === 'K' ? 'entrega' : 'presupuesto'}`);
+                turnoLlamado.innerHTML = `
+                    <div class="turno-llamado">
+                        Turno: ${data.tipo}${data.numero}
+                    </div>
+                    <div class="turno-usuario">
+                        Llamado por: ${data.usuario}
+                    </div>
+                `;
+
+                // Reproducir el audio del turno
+                const audioElement = document.getElementById('audio-turno');
+                audioElement.src = `/static/optica/audios/${data.tipo}${data.numero}.mp3`;
+                audioElement.play().catch(error => {
+                    console.error('Error al reproducir el audio:', error);
+                });
+
+                // Eliminar el turno de la lista de próximos
+                const turnoEnLista = document.getElementById(`turno-${data.id}`);
+                if (turnoEnLista) turnoEnLista.remove();
+            }
+
+            // Caso 2: Turno en estado "Atendiendo"
+            if (data.estado === 'Atendiendo') {
+                const turnoLlamado = document.getElementById(`turno-llamado-${data.tipo === 'K' ? 'entrega' : 'presupuesto'}`);
+                turnoLlamado.querySelector('.turno-llamado').classList.add('atendido');
+            }
+
+            // Caso 3: Turno en estado "En espera" (Agregar a la lista de próximos)
+            if (data.estado === 'En espera') {
+                const lista = data.tipo === 'K' ? 'lista-proximos-turnos-entrega' : 'lista-proximos-turnos-presupuesto';
+                const listaElement = document.getElementById(lista);
+                const nuevoTurno = document.createElement('li');
+                nuevoTurno.className = 'turno-item';
+                nuevoTurno.id = `turno-${data.id}`;
+                nuevoTurno.textContent = `Turno: ${data.tipo}${data.numero}`;
+
+                // Agregar el turno al final de la lista y mantener solo los 10 primeros
+                listaElement.appendChild(nuevoTurno);
+                while (listaElement.children.length > 10) {
+                    listaElement.removeChild(listaElement.firstChild);
+                }
+            }
+
+            // Caso 4: Turno en estado "Finalizado"
+            if (data.estado === 'Finalizado' || data.estado === 'No Respondió') {
+                const turnoLlamado = document.getElementById(`turno-llamado-${data.tipo === 'K' ? 'entrega' : 'presupuesto'}`);
+                turnoLlamado.innerHTML = `<div class="text-muted">Sin turno llamado</div>`;
+            }
+        };
+
+        socket.onerror = function (error) {
+            console.error('Error en WebSocket:', error);
+        };
+    </script>
+</body>
+</html>

@@ -15,7 +15,7 @@
                 <div class="card-body">
                     <ul class="list-group" id="turnos-k">
                         {% for turno in turnos_entrega %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center" id="turno-k-{{ turno.id }}">
+                            <li class="list-group-item d-flex justify-content-between align-items-center" id="turno-k-{{ turno.numero }}">
                                 <span>Turno: {{ turno.tipo }}{{ turno.numero }}</span>
                             </li>
                         {% endfor %}
@@ -60,7 +60,7 @@
                 <div class="card-body">
                     <ul class="list-group" id="turnos-p">
                         {% for turno in turnos_presupuesto %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center" id="turno-p-{{ turno.id }}">
+                            <li class="list-group-item d-flex justify-content-between align-items-center" id="turno-p-{{ turno.numero }}">
                                 <span>Turno: {{ turno.tipo }}{{ turno.numero }}</span>
                             </li>
                         {% endfor %}
@@ -105,10 +105,15 @@
             document.getElementById('estado-turno').style.display = 'none';
 
             //Eliminamos el turno de la lista de " En espera"
-
-            const turnoEnLista = document.getElementById(`turno-${data.id}`);
+            console.log(`Buscando turno con ID: turno-${data.id}`);
+            const turnoEnLista = document.getElementById(`turno-${data.tipo.toLowerCase()}-${data.numero}`);
+            console.log(turnoEnLista); // Verificar si encuentra el elemento en el DOM
             if(turnoEnLista){
                 turnoEnLista.remove();
+                console.log(`Turno eliminado: turno-${data.id}`)
+            }
+            else{
+                console.log(`No se encontró el turno con ID: turno-${data.id}`)
             }
             
             turnoLlamando = true; // Bloquear nuevos llamados

@@ -9,4 +9,5 @@ urlpatterns = [
     path('empezar-atencion/', views.empezar_atencion, name='empezar_atencion'),
     path('terminar-atencion/', views.terminar_atencion, name='terminar_atencion'),
     path('no-contesto/', views.no_contesto, name='no_contesto'),
+    path('pantalla-turnos/', views.pantalla_turnos, name='pantalla_turnos'),
 ]

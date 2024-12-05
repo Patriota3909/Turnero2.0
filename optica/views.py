@@ -209,3 +209,12 @@ def no_contesto(request):
         turno.save()
         return JsonResponse({'message': 'El turno se marcó como "No contestó".'})
     return JsonResponse({'error': 'Método no permitido.'}, status=405)
+
+def pantalla_turnos(request):
+    turnos_entrega = Turno.objects.filter(tipo='K', estado='En espera')[:10]
+    turnos_presupuesto = Turno.objects.filter(tipo='P', estado='En espera')[:10]
+
+    return render(request, 'optica/pantalla_turnos.html', {
+        'proximos_turnos_entrega': turnos_entrega,
+        'proximos_turnos_presupuesto': turnos_presupuesto,
+    })
